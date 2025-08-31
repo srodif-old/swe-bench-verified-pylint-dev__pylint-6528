@@ -6,7 +6,7 @@ pre-commit~=2.19
 tbump~=6.8.0
 contributors-txt>=0.7.3
 pytest-cov~=3.0
-pytest-profiling~=1.7
+pytest-profiling~=1.8
 pytest-xdist~=2.5
 # Type packages for mypy
 types-pkg_resources==0.1.3
