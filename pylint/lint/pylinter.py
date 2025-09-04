@@ -564,13 +564,23 @@ class PyLinter(
             if not msg.may_be_emitted():
                 self._msgs_state[msg.msgid] = False
 
-    @staticmethod
-    def _discover_files(files_or_modules: Sequence[str]) -> Iterator[str]:
+    def _discover_files(self, files_or_modules: Sequence[str]) -> Iterator[str]:
         """Discover python modules and packages in sub-directory.
 
         Returns iterator of paths to discovered modules and packages.
         """
+        from pylint.lint.expand_modules import _is_in_ignore_list_re
+        
         for something in files_or_modules:
+            # Check if the top-level item should be ignored
+            basename = os.path.basename(something)
+            if (
+                basename in self.config.ignore
+                or _is_in_ignore_list_re(basename, self.config.ignore_patterns)
+                or _is_in_ignore_list_re(os.path.normpath(something), self.config.ignore_paths)
+            ):
+                continue
+                
             if os.path.isdir(something) and not os.path.isfile(
                 os.path.join(something, "__init__.py")
             ):
@@ -579,15 +589,31 @@ class PyLinter(
                     if any(root.startswith(s) for s in skip_subtrees):
                         # Skip subtree of already discovered package.
                         continue
+                    
+                    # Check if this directory should be ignored
+                    root_basename = os.path.basename(root)
+                    if (
+                        root_basename in self.config.ignore
+                        or _is_in_ignore_list_re(root_basename, self.config.ignore_patterns)
+                        or _is_in_ignore_list_re(os.path.normpath(root), self.config.ignore_paths)
+                    ):
+                        continue
+                        
                     if "__init__.py" in files:
                         skip_subtrees.append(root)
                         yield root
                     else:
-                        yield from (
-                            os.path.join(root, file)
-                            for file in files
-                            if file.endswith(".py")
-                        )
+                        for file in files:
+                            if file.endswith(".py"):
+                                filepath = os.path.join(root, file)
+                                # Check if this file should be ignored
+                                if (
+                                    file in self.config.ignore
+                                    or _is_in_ignore_list_re(file, self.config.ignore_patterns)
+                                    or _is_in_ignore_list_re(os.path.normpath(filepath), self.config.ignore_paths)
+                                ):
+                                    continue
+                                yield filepath
             else:
                 yield something
 
